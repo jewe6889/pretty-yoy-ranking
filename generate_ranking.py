@@ -157,7 +157,8 @@ def draw_flow_curve(ax, x1, y1, x2, y2, start_color, end_color, alpha=0.7, width
             PathEffects.withStroke(linewidth=2.5, foreground='white')
         ])
 
-def create_visualization(data, output_file, title="Top 10 Movie Countries of Origin", subtitle=None):
+def create_visualization(data, output_file, title="Top 10 Movie Countries of Origin", subtitle=None, 
+                         source=None, watermark=None, show_values=True, max_entries_override=None):
     """Create the year-over-year ranking visualization with enhanced styling."""
     # Create figure and axes with improved proportions
     fig = plt.figure(figsize=(12, 10), dpi=300) # Adjusted figsize slightly
@@ -178,18 +179,28 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
     ax.add_patch(content_bg)
     
     # Add title and subtitle with enhanced typography
-    plt.figtext(0.05, 0.95, title, fontsize=20, fontweight='bold', # Adjusted fontsize
+    plt.figtext(0.05, 0.95, title, fontsize=20, fontweight='bold',
                 color='#232323', ha='left',
                 bbox=dict(facecolor='none', edgecolor='none', pad=0))
     
+    # Get years dynamically from data instead of hardcoding
+    years = sorted(data.keys())
+    if len(years) < 2:
+        print("Warning: Data must contain at least two years. Using placeholder years.")
+        years = ["Previous Year", "Current Year"]
+    
+    # Use the last two years if more than two are provided
+    prev_year = years[-2]
+    curr_year = years[-1]
+    
     if subtitle:
-        plt.figtext(0.05, 0.91, subtitle, fontsize=14, # Adjusted fontsize
+        plt.figtext(0.05, 0.91, subtitle, fontsize=14,
                     color='#5A5A5A', ha='left')
     else:
-        # Update default subtitle years
+        # Use dynamic years in subtitle
         plt.figtext(0.05, 0.91, 
-                    f"Comparison of rankings between 2024 and 2025",
-                    fontsize=14, color='#5A5A5A', ha='left') # Adjusted fontsize
+                    f"Comparison of rankings between {prev_year} and {curr_year}",
+                    fontsize=14, color='#5A5A5A', ha='left')
     
     # Define positions with optimized spacing - adjusted X positions
     left_col_x = 25  # Moved left as edge area is removed
@@ -200,32 +211,35 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
     small_circle_radius = 1.2
     
     # Draw vertical line to separate the columns with improved styling
-    ax.axvline(x=50, ymin=0.15, ymax=0.85, color='#DDDDDD', linestyle='-', alpha=0.9, lw=1.2, zorder=0) # Adjusted ymin/ymax slightly
+    ax.axvline(x=50, ymin=0.15, ymax=0.85, color='#DDDDDD', linestyle='-', alpha=0.9, lw=1.2, zorder=0)
     
-    # Add year labels with enhanced typography - updated years
-    plt.text(left_col_x, top_y + spacing, '2024', fontsize=16, fontweight='bold', # Adjusted fontsize
+    # Add year labels with enhanced typography - use dynamic years
+    plt.text(left_col_x, top_y + spacing, prev_year, fontsize=16, fontweight='bold',
              ha='center', va='center', color='#232323')
-    plt.text(right_col_x, top_y + spacing, '2025', fontsize=16, fontweight='bold', # Adjusted fontsize
+    plt.text(right_col_x, top_y + spacing, curr_year, fontsize=16, fontweight='bold',
              ha='center', va='center', color='#232323')
     
-    # Get all data for the years - updated years
-    data_prev_all = data.get('2024', [])
-    data_curr_all = data.get('2025', [])
+    # Get all data for the years - use dynamic years
+    data_prev_all = data.get(prev_year, [])
+    data_curr_all = data.get(curr_year, [])
     
-    # Determine how many entries to show (up to 10 or max available)
-    max_entries = min(10, max(len(data_prev_all), len(data_curr_all)))
+    # Determine how many entries to show (up to 10 or max available or override)
+    if max_entries_override is not None:
+        max_entries = min(max_entries_override, max(len(data_prev_all), len(data_curr_all)))
+    else:
+        max_entries = min(10, max(len(data_prev_all), len(data_curr_all)))
     
-    # Filter to show the determined number of entries - updated years
+    # Filter to show the determined number of entries - use dynamic years
     data_prev = [item for item in data_prev_all if item['rank'] <= max_entries]
     data_curr = [item for item in data_curr_all if item['rank'] <= max_entries]
     
-    # Create lookups for positions and countries - updated years
+    # Create lookups for positions and countries
     positions_prev = {}
     positions_curr = {}
     countries_prev_top = set(item['country'] for item in data_prev)
     countries_curr_top = set(item['country'] for item in data_curr)
     
-    # Create a lookup for full data - updated years
+    # Create a lookup for full data
     country_region_prev = {item['country']: item.get('region', 'Unknown') for item in data_prev_all}
     country_region_curr = {item['country']: item.get('region', 'Unknown') for item in data_curr_all}
     
@@ -237,17 +251,17 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
             height = y_top - y_bottom
             
             # Create a subtle background for even rows
-            row_bg = plt.Rectangle((5, y_bottom), 90, height, fc='#F5F7F9', # Adjusted x and width
+            row_bg = plt.Rectangle((5, y_bottom), 90, height, fc='#F5F7F9',
                                   ec='none', alpha=0.6, zorder=0)
             ax.add_patch(row_bg)
     
     # Draw horizontal separator lines with improved styling (only where needed)
     for i in range(1, max_entries):
         y_pos = top_y - (i * spacing) + (spacing / 2)
-        plt.axhline(y=y_pos, xmin=0.05, xmax=0.95, color='#DDDDDD', # Adjusted xmin/xmax
+        plt.axhline(y=y_pos, xmin=0.05, xmax=0.95, color='#DDDDDD',
                    linestyle='dotted', alpha=0.8, linewidth=0.8, zorder=1)
     
-    # Draw 2024 rankings with enhanced styling - updated year
+    # Draw previous year rankings with enhanced styling
     for i, item in enumerate(data_prev):
         y_pos = top_y - i * spacing
         positions_prev[item['country']] = (left_col_x, y_pos)
@@ -277,23 +291,24 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                  color='#232323', zorder=4)
         
         # Add percentage/value with improved styling and positioning
-        value_text = ""
-        if 'percentage' in item:
-            value_text = f"{item['percentage']}%"
-        elif 'value' in item:
-             # Format value nicely if it's numeric
-            try:
-                value_text = f"{float(item['value']):.2f}"
-            except (ValueError, TypeError):
-                value_text = str(item['value']) # Fallback to string if not float
+        if show_values:
+            value_text = ""
+            if 'percentage' in item:
+                value_text = f"{item['percentage']}%"
+            elif 'value' in item:
+                # Format value nicely if it's numeric
+                try:
+                    value_text = f"{float(item['value']):.2f}"
+                except (ValueError, TypeError):
+                    value_text = str(item['value']) # Fallback to string if not float
 
-        if value_text:
-            plt.text(left_col_x + 5, y_pos - 1.5,
-                    value_text,
-                    fontsize=9, ha='left', va='center', 
-                    color='#5A5A5A', fontstyle='italic', zorder=4)
+            if value_text:
+                plt.text(left_col_x + 5, y_pos - 1.5,
+                        value_text,
+                        fontsize=9, ha='left', va='center', 
+                        color='#5A5A5A', fontstyle='italic', zorder=4)
     
-    # Draw 2025 rankings with enhanced styling - updated year
+    # Draw current year rankings with enhanced styling
     for i, item in enumerate(data_curr):
         y_pos = top_y - i * spacing
         positions_curr[item['country']] = (right_col_x, y_pos)
@@ -323,23 +338,24 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                  color='#232323', zorder=4)
         
         # Add percentage/value with improved styling and positioning
-        value_text = ""
-        if 'percentage' in item:
-            value_text = f"{item['percentage']}%"
-        elif 'value' in item:
-             # Format value nicely if it's numeric
-            try:
-                value_text = f"{float(item['value']):.2f}"
-            except (ValueError, TypeError):
-                value_text = str(item['value']) # Fallback to string if not float
+        if show_values:
+            value_text = ""
+            if 'percentage' in item:
+                value_text = f"{item['percentage']}%"
+            elif 'value' in item:
+                # Format value nicely if it's numeric
+                try:
+                    value_text = f"{float(item['value']):.2f}"
+                except (ValueError, TypeError):
+                    value_text = str(item['value']) # Fallback to string if not float
 
-        if value_text:
-            plt.text(right_col_x + 5, y_pos - 1.5,
-                    value_text,
-                    fontsize=9, ha='left', va='center', 
-                    color='#5A5A5A', fontstyle='italic', zorder=4)
+            if value_text:
+                plt.text(right_col_x + 5, y_pos - 1.5,
+                        value_text,
+                        fontsize=9, ha='left', va='center', 
+                        color='#5A5A5A', fontstyle='italic', zorder=4)
         
-        # Check if it's a new entry with enhanced styling - updated year check
+        # Check if it's a new entry with enhanced styling
         if item['country'] not in countries_prev_top:
             # Check if we have a previous rank beyond top shown
             prev_rank = get_rank_in_data(item['country'], data_prev_all)
@@ -378,7 +394,7 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                         bbox=dict(boxstyle="round,pad=0.4", fc="#f0f0f0", ec="#E0E0E0", 
                                 alpha=0.9), zorder=4)
     
-    # Draw connecting curves between entries in both years - updated year logic
+    # Draw connecting curves between entries in both years
     for country, (x2, y2) in positions_curr.items():
         if country in positions_prev:
             x1, y1 = positions_prev[country]
@@ -389,7 +405,7 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
             start_color = REGION_COLORS[start_region]
             end_color = REGION_COLORS[end_region]
             
-            # Calculate rank change - updated year logic
+            # Calculate rank change - use dynamic year logic
             start_rank = get_rank_in_data(country, data_prev_all) # Use all data for correct rank change calc
             end_rank = get_rank_in_data(country, data_curr_all)
             rank_change = None
@@ -415,10 +431,10 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
             
             # Draw improved flow line with enhanced styling
             draw_flow_curve(ax, x1, y1, x2, y2, start_color, end_color, 
-                           alpha=0.65, width=width, rank_change=rank_change) # Removed is_out_of_rank flag
+                           alpha=0.65, width=width, rank_change=rank_change)
     
     # Create a legend container with subtle styling - adjusted position/size
-    legend_container = plt.Rectangle((5, 1), 90, 12, fc='#FAFAFA', # Adjusted x and width
+    legend_container = plt.Rectangle((5, 1), 90, 12, fc='#FAFAFA',
                                    ec='#E5E5E5', linewidth=0.8, 
                                    alpha=0.9, zorder=1)
     ax.add_patch(legend_container)
@@ -434,7 +450,7 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
     }
     
     # Draw group headers with improved styling - adjusted positions
-    group_x_positions = [10, 40, 70] # Adjusted positions
+    group_x_positions = [10, 40, 70]
     
     for i, (group_name, regions) in enumerate(continent_groups.items()):
         group_x = group_x_positions[i]
@@ -464,12 +480,14 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                     fontsize=9, ha='left', va='center', 
                     color='#333333', zorder=4)
     
-    # Add enhanced source citation - adjusted position
-    plt.figtext(0.05, 0.02, "Source: Dummy data for illustration purposes", # Adjusted position
+    # Add enhanced source citation with custom source text
+    source_text = source if source else "Source: Dummy data for illustration purposes"
+    plt.figtext(0.05, 0.02, source_text,
                 fontsize=8, style='italic', color='#777777')
     
-    # Add watermark/credit - adjusted position
-    plt.figtext(0.95, 0.02, "Generated with pretty-yoy-ranking", # Adjusted position
+    # Add watermark/credit with custom text
+    watermark_text = watermark if watermark else "Generated with pretty-yoy-ranking"
+    plt.figtext(0.95, 0.02, watermark_text,
                fontsize=7, style='italic', color='#AAAAAA', ha='right')
     
     # Save the figure with enhanced quality settings
@@ -492,6 +510,14 @@ def main():
                         help='Chart subtitle (defaults to a generated subtitle)')
     parser.add_argument('-d', '--data', default='sample_data.json',
                         help='Path to JSON file with ranking data')
+    parser.add_argument('--source', 
+                        help='Custom source citation text')
+    parser.add_argument('--watermark', 
+                        help='Custom watermark text')
+    parser.add_argument('--hide-values', action='store_true',
+                        help='Hide percentage/value text in the visualization')
+    parser.add_argument('--max-entries', type=int,
+                        help='Maximum number of entries to show (default is 10)')
     
     args = parser.parse_args()
     
@@ -509,8 +535,17 @@ def main():
         print("Please provide a valid JSON data file.")
         return
     
-    # Create visualization
-    create_visualization(data, args.output, args.title, args.subtitle)
+    # Create visualization with all customization options
+    create_visualization(
+        data, 
+        args.output, 
+        args.title, 
+        args.subtitle, 
+        args.source, 
+        args.watermark,
+        not args.hide_values,
+        args.max_entries
+    )
 
 if __name__ == "__main__":
     main()
