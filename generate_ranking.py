@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate a year-over-year ranking visualization for movie countries of origin.
+Version 2.0 with integrated flow lines for dropped items.
 """
 
 import argparse
@@ -46,7 +47,7 @@ def create_color_gradient(start_color, end_color, n=100):
     cmap = LinearSegmentedColormap.from_list("custom_gradient", [start_color, end_color], N=n)
     return cmap
 
-def draw_flow_curve(ax, x1, y1, x2, y2, start_color, end_color, alpha=0.7, width=2.0, rank_change=None):
+def draw_flow_curve(ax, x1, y1, x2, y2, start_color, end_color, alpha=0.7, width=2.0, rank_change=None, is_out_of_rank=False):
     """Draw a Bezier curve between two points with gradient color and rank change indicator."""
     # Create gradient for the line with smoother transitions
     cmap = create_color_gradient(start_color, end_color)
@@ -59,9 +60,14 @@ def draw_flow_curve(ax, x1, y1, x2, y2, start_color, end_color, alpha=0.7, width
     # Dynamic control points based on distance
     control_shift = min(x_dist * 0.4, 18)  # Less aggressive control points
     
-    # Create points with improved logic for smoother lines
-    control_point1_x = x1 + control_shift
-    control_point2_x = x2 - control_shift
+    # For out-of-rank flows, adjust control points
+    if is_out_of_rank:
+        # Make the curve more horizontal at first then steeper at the end
+        control_point1_x = x1 + control_shift * 1.2  # Move farther right from source
+        control_point2_x = x2 - control_shift * 0.5  # Closer to destination for steeper approach
+    else:
+        control_point1_x = x1 + control_shift
+        control_point2_x = x2 - control_shift
     
     # Create path for the curve with improved control points
     curve_points = np.array([
@@ -81,6 +87,10 @@ def draw_flow_curve(ax, x1, y1, x2, y2, start_color, end_color, alpha=0.7, width
         for x in x
     ])
     
+    # Adjust alpha for out-of-rank flows
+    if is_out_of_rank:
+        alpha = alpha * 0.75  # Slightly more transparent
+    
     # Draw the curve segments with gradient color with z-order control
     segments = []
     for i in range(len(curve) - 1):
@@ -98,7 +108,7 @@ def draw_flow_curve(ax, x1, y1, x2, y2, start_color, end_color, alpha=0.7, width
         ax.add_artist(segment)
     
     # Add rank change indicator if specified with improved styling
-    if rank_change is not None:
+    if rank_change is not None and not is_out_of_rank:
         # Position the indicator in the middle of the curve with slight offset
         mid_point_idx = len(curve) // 2
         mid_x, mid_y = curve[mid_point_idx]
@@ -190,12 +200,25 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                     fontsize=15, color='#5A5A5A', ha='left')
     
     # Define positions with optimized spacing
-    left_col_x = 25
+    left_col_x = 30  # Moved right to make room for edge area on left
     right_col_x = 75
-    spacing = 6.8       # Refined spacing for more compact layout
+    spacing = 6.2       # More compact spacing
     top_y = 82          # Adjusted starting y position
     circle_radius = 2.5
     small_circle_radius = 1.2
+    
+    # Create edge area for items that dropped out of top 10 - MOVED TO LEFT
+    edge_area_x = 12  # Position for edge indicators on left side
+    edge_bg = plt.Rectangle((9, top_y - (11 * spacing)), 6, (11 * spacing + 2), 
+                          fc='#F0F2F5', ec='#E0E0E0', 
+                          linewidth=0.5, alpha=0.8, zorder=1)
+    ax.add_patch(edge_bg)
+    
+    # Add "out of top 10" label
+    plt.text(edge_area_x, top_y + 2, "Out of Top 10", 
+            fontsize=8, ha='center', va='bottom', 
+            color='#555555', fontweight='bold', zorder=4, 
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#E0E0E0", alpha=0.9))
     
     # Draw vertical line to separate the columns with improved styling
     ax.axvline(x=50, ymin=0.2, ymax=0.85, color='#DDDDDD', linestyle='-', alpha=0.9, lw=1.2, zorder=0)
@@ -210,22 +233,31 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
     data_2023_all = data.get('2023', [])
     data_2024_all = data.get('2024', [])
     
-    # Filter to only show top 10
-    data_2023 = [item for item in data_2023_all if item['rank'] <= 10]
-    data_2024 = [item for item in data_2024_all if item['rank'] <= 10]
+    # Determine how many entries to show (up to 15)
+    max_entries = min(10, max(len(data_2023_all), len(data_2024_all)))
     
-    # Create lookups for positions and countries in top 10
+    # Filter to show the determined number of entries
+    data_2023 = [item for item in data_2023_all if item['rank'] <= max_entries]
+    data_2024 = [item for item in data_2024_all if item['rank'] <= max_entries]
+    
+    # Create lookups for positions and countries
     positions_2023 = {}
     positions_2024 = {}
-    countries_2023_top10 = set(item['country'] for item in data_2023)
-    countries_2024_top10 = set(item['country'] for item in data_2024)
+    countries_2023_top = set(item['country'] for item in data_2023)
+    countries_2024_top = set(item['country'] for item in data_2024)
     
     # Create a lookup for full data
     country_region_2023 = {item['country']: item['region'] for item in data_2023_all}
     country_region_2024 = {item['country']: item['region'] for item in data_2024_all}
     
+    # Find entries that dropped out of top rankings from 2023 to 2024
+    dropped_entries = [
+        item for item in data_2023_all 
+        if item['rank'] <= 10 and item['country'] not in [i['country'] for i in data_2024 if i['rank'] <= 10]
+    ]
+    
     # Add subtle alternating row backgrounds for better readability
-    for i in range(10):
+    for i in range(max_entries):
         if i % 2 == 0:  # Alternating rows
             y_top = top_y - (i * spacing) + (spacing / 2)
             y_bottom = top_y - ((i+1) * spacing) + (spacing / 2)
@@ -237,7 +269,7 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
             ax.add_patch(row_bg)
     
     # Draw horizontal separator lines with improved styling (only where needed)
-    for i in range(1, 10):
+    for i in range(1, max_entries):
         y_pos = top_y - (i * spacing) + (spacing / 2)
         plt.axhline(y=y_pos, xmin=0.08, xmax=0.92, color='#DDDDDD', 
                    linestyle='dotted', alpha=0.8, linewidth=0.8, zorder=1)
@@ -311,8 +343,8 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                 color='#5A5A5A', fontstyle='italic', zorder=4)
         
         # Check if it's a new entry with enhanced styling
-        if item['country'] not in countries_2023_top10:
-            # Check if we have a previous rank beyond top 10
+        if item['country'] not in countries_2023_top:
+            # Check if we have a previous rank beyond top shown
             prev_rank = get_rank_in_data(item['country'], data_2023_all)
             if prev_rank:
                 prev_indicator_x = right_col_x - 12
@@ -348,72 +380,72 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                         bbox=dict(boxstyle="round,pad=0.4", fc="#f0f0f0", ec="#E0E0E0", 
                                 alpha=0.9), zorder=4)
     
-    # MOVED: Create a "dropped from top 10" section on the LEFT side
-    dropped_entries_shown = 0
-    dropped_entries = [item for item in data_2023 if item['country'] not in countries_2024_top10]
-    
-    if dropped_entries:
-        # Create section container on left side
-        dropped_container_y = 30
-        dropped_container_height = 15
-        dropped_container = plt.Rectangle((8, dropped_container_y - dropped_container_height), 
-                                        34, dropped_container_height, 
-                                        fc='#F5F7F9', ec='#E0E0E0', 
-                                        linewidth=0.8, alpha=0.8, zorder=1)
-        ax.add_patch(dropped_container)
-        
-        # Add a heading for this section
-        plt.text(10, dropped_container_y - 2, 
-                "Dropped from Top 10:", 
-                fontsize=9, ha='left', va='top', 
-                color='#555555', fontweight='bold', zorder=4)
-        
-        # Process dropped entries
-        for i, item in enumerate(dropped_entries):
-            # Position entries within the container
-            y_pos = dropped_container_y - 5 - (i * 3.5)
+    # Process dropped entries with integrated flow lines - NOW ON LEFT SIDE
+    for i, item in enumerate(dropped_entries):
+        if get_rank_in_data(item['country'], data_2023_all) <= 10:  # Was in top 10 last year
+            # Get the source position (2023 rank)
+            source_x, source_y = positions_2023.get(item['country'], (left_col_x, top_y - item['rank'] * spacing))
             
-            # Get 2024 rank if available
+            # Find its current position in 2024 if available
             new_rank = get_rank_in_data(item['country'], data_2024_all)
             
-            # Add subtle shadow for depth
-            shadow = plt.Circle((12.15, y_pos - 0.15), small_circle_radius,
+            # Calculate position for edge indicator
+            if new_rank:
+                # Proportional positioning based on new rank
+                edge_y = top_y - min(new_rank * spacing * 0.7, (11 * spacing) - 5)
+            else:
+                # Position at the bottom of edge area if no rank available
+                edge_y = top_y - (9 + i % 3) * spacing
+            
+            # Create edge indicator
+            
+            # Add subtle shadow
+            shadow = plt.Circle((edge_area_x + 0.15, edge_y - 0.15), small_circle_radius,
                               color='#00000015', zorder=2)
             ax.add_artist(shadow)
             
-            # Draw a small indicator circle with enhanced styling
+            # Draw indicator circle
             indicator_color = REGION_COLORS[item['region']]
-            indicator = plt.Circle((12, y_pos), small_circle_radius, 
-                                  color=indicator_color, alpha=0.9,
-                                  ec='white', lw=0.5, zorder=3)
-            ax.add_artist(indicator)
+            edge_indicator = plt.Circle((edge_area_x, edge_y), small_circle_radius, 
+                                      color=indicator_color, alpha=0.9,
+                                      ec='white', lw=0.5, zorder=6)
+            ax.add_artist(edge_indicator)
             
-            # Add the previous rank with enhanced styling
-            plt.text(12, y_pos, str(item['rank']), 
+            # Add previous rank number to indicator
+            plt.text(edge_area_x, edge_y, str(item['rank']), 
                     fontsize=8, ha='center', va='center', 
-                    color='white', zorder=4)
+                    color='white', zorder=7)
             
-            # Add country name and new rank with improved styling
-            plt.text(15, y_pos, 
-                    f"{item['country']}", 
-                    fontsize=9, ha='left', va='center', 
-                    color='#444444', zorder=4)
-            
-            # Add 2024 status
+            # Add country name with its new rank if available
             if new_rank:
-                plt.text(28, y_pos,
-                        f"→ #{new_rank}", 
-                        fontsize=8.5, ha='left', va='center', 
-                        color='#666666', zorder=4)
+                y_offset = 0
+                rank_info = f"#{new_rank}"
             else:
-                plt.text(28, y_pos,
-                        "→ out", 
-                        fontsize=8.5, ha='left', va='center', 
-                        color='#666666', zorder=4)
+                y_offset = 0
+                rank_info = "out"
+                
+            # Add small label with new rank info
+            plt.text(edge_area_x, edge_y - 2, 
+                    f"{item['country']}", 
+                    fontsize=7, ha='center', va='top', 
+                    color='#444444', zorder=7)
             
-            dropped_entries_shown += 1
-            if dropped_entries_shown >= 3:
-                break
+            plt.text(edge_area_x, edge_y - 3.2, 
+                    f"(now {rank_info})", 
+                    fontsize=6.5, ha='center', va='top', 
+                    color='#666666', style='italic', zorder=7)
+            
+            # Draw flow line from edge to previous position (reversed direction)
+            start_color = REGION_COLORS[item['region']]
+            end_color = start_color  # Same color with fade
+            
+            # Calculate appropriate line width
+            width = 0.8  # Thinner for out-of-ranking lines
+            
+            # Draw the flow curve for out-of-rank item (from left edge to 2023 position)
+            draw_flow_curve(ax, edge_area_x, edge_y, source_x, source_y, 
+                           start_color, end_color, alpha=0.5, width=width, 
+                           rank_change=None, is_out_of_rank=True)
     
     # Draw connecting curves between entries in both years
     for country, (x2, y2) in positions_2024.items():
@@ -440,7 +472,7 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                     width = max(0.6, min(2.8, width))  # Refined clamping
                     # Draw improved flow line with enhanced styling
                     draw_flow_curve(ax, x1, y1, x2, y2, start_color, end_color, 
-                                   alpha=0.65, width=width, rank_change=rank_change)
+                                   alpha=0.65, width=width, rank_change=rank_change, is_out_of_rank=False)
                     break
     
     # Create a legend container with subtle styling
@@ -500,7 +532,7 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
     # Save the figure with enhanced quality settings
     plt.savefig(output_file, bbox_inches='tight', dpi=300, 
                facecolor='white', edgecolor='none')
-    print(f"Publication-ready visualization saved to {output_file}")
+    print(f"Version 2.0 visualization saved to {output_file}")
 
 def load_data_from_json(json_file):
     """Load data from a JSON file."""
@@ -509,7 +541,7 @@ def load_data_from_json(json_file):
 
 def main():
     parser = argparse.ArgumentParser(description='Generate year-over-year ranking visualization.')
-    parser.add_argument('-o', '--output', default='publication_ready_ranking.png',
+    parser.add_argument('-o', '--output', default='ranking_v2.png',
                         help='Output file name (PNG format)')
     parser.add_argument('-t', '--title', default='Top 10 Movie Countries of Origin',
                         help='Chart title')
