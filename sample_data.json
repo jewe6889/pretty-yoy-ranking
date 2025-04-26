@@ -1,5 +1,5 @@
 {
-  "2023": [
+  "2024": [
     {"rank": 1, "country": "USA", "region": "North America", "percentage": 32.0},
     {"rank": 2, "country": "Japan", "region": "Asia", "percentage": 18.0},
     {"rank": 3, "country": "South Korea", "region": "Asia", "percentage": 12.0},
@@ -21,7 +21,7 @@
     {"rank": 19, "country": "Thailand", "region": "Asia", "percentage": 0.3},
     {"rank": 20, "country": "Nigeria", "region": "Africa", "percentage": 0.2}
   ],
-  "2024": [
+  "2025": [
     {"rank": 1, "country": "Japan", "region": "Asia", "percentage": 28.0},
     {"rank": 2, "country": "South Korea", "region": "Asia", "percentage": 22.0},
     {"rank": 3, "country": "USA", "region": "North America", "percentage": 18.0},
