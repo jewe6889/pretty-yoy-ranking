@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate a year-over-year ranking visualization for movie countries of origin.
+Generate a year-over-year ranking visualization for any type of ranked data.
 Version 2.0 with integrated flow lines for dropped items.
 """
 
@@ -14,6 +14,8 @@ from matplotlib.path import Path
 from matplotlib.colors import to_rgba, LinearSegmentedColormap
 import matplotlib.patheffects as PathEffects
 from matplotlib import rcParams
+import hashlib
+from matplotlib.colors import hsv_to_rgb
 
 # Set up high-quality visualization defaults
 plt.rcParams['font.family'] = 'sans-serif'
@@ -25,21 +27,87 @@ plt.rcParams['ytick.major.width'] = 0.8
 plt.rcParams['axes.titlepad'] = 12
 plt.rcParams['figure.dpi'] = 300
 
-# Enhanced color scheme for regions with improved contrast and print compatibility
-REGION_COLORS = {
-    'North America': '#FF7F0E',  # Darker orange for better contrast
-    'Europe': '#1F77B4',         # Darker blue
-    'Asia': '#2CA02C',           # Richer green
-    'South America': '#9467BD',  # Richer purple
-    'Oceania': '#D62728',        # Darker red
-    'Africa': '#E6B417',          # Richer yellow
-    'Unknown': '#8C8C8C'         # Grey for unknown regions
+# Fallback colors for backward compatibility - using generic group names
+FALLBACK_COLORS = {
+    'Group A': '#FF7F0E',  # Orange
+    'Group B': '#1F77B4',  # Blue
+    'Group C': '#2CA02C',  # Green
+    'Group D': '#9467BD',  # Purple
+    'Group E': '#D62728',  # Red
+    'Group F': '#8C564B',  # Brown
+    'Group G': '#E377C2',  # Pink
+    'Group H': '#7F7F7F',  # Gray
+    'Group I': '#BCBD22',  # Yellow-green
+    'Group J': '#17BECF',  # Cyan
+    'Unknown': '#8C8C8C'   # Grey for unknown categories
 }
 
-def get_rank_in_data(country, data):
-    """Find the rank of a country in the data."""
+def generate_category_colors(categories):
+    """
+    Dynamically generate colors for categories.
+    Uses a deterministic algorithm that will always produce the same color for the same category name.
+    """
+    color_dict = {}
+    
+    # Add special handling for common categories to maintain consistency with previous versions
+    for category, color in FALLBACK_COLORS.items():
+        color_dict[category] = color
+    
+    # High-contrast color palette (ensures good readability and distinction)
+    base_colors = [
+        '#1F77B4',  # Blue
+        '#FF7F0E',  # Orange
+        '#2CA02C',  # Green
+        '#D62728',  # Red
+        '#9467BD',  # Purple
+        '#8C564B',  # Brown
+        '#E377C2',  # Pink
+        '#7F7F7F',  # Gray
+        '#BCBD22',  # Yellow-green
+        '#17BECF',  # Cyan
+        '#AF7AA1',  # Mauve
+        '#FE5F55',  # Salmon
+        '#4B3B40',  # Dark gray
+        '#9CAFB7',  # Light blue-gray
+        '#566E3D',  # Olive green
+        '#A5D8DD',  # Light blue
+        '#E36588',  # Raspberry
+        '#7FB069',  # Sage green
+        '#D8973C',  # Amber
+        '#965251',  # Burgundy
+    ]
+    
+    # Generate a unique but consistent color for each category not in fallback
+    for i, category in enumerate(categories):
+        if category not in color_dict:
+            if i < len(base_colors):
+                color_dict[category] = base_colors[i]
+            else:
+                # For any additional categories, generate deterministic colors using the hash
+                # This ensures the same category always gets the same color
+                hash_obj = hashlib.md5(category.encode())
+                hash_hex = hash_obj.hexdigest()
+                
+                # Convert the hash to HSV values with good saturation and value
+                # for visibility, then convert to RGB
+                h = int(hash_hex[:2], 16) / 255.0  # Hue from first byte
+                s = 0.7 + (int(hash_hex[2:4], 16) / 255.0) * 0.3  # Saturation 0.7-1.0
+                v = 0.6 + (int(hash_hex[4:6], 16) / 255.0) * 0.3  # Value 0.6-0.9
+                
+                rgb = hsv_to_rgb((h, s, v))
+                hex_color = '#{:02x}{:02x}{:02x}'.format(
+                    int(rgb[0]*255),
+                    int(rgb[1]*255),
+                    int(rgb[2]*255)
+                )
+                color_dict[category] = hex_color
+    
+    return color_dict
+
+def get_rank_in_data(item_name, data):
+    """Find the rank of an item in the data."""
     for item in data:
-        if item['country'] == country:
+        if item['item'] == item_name:
             return item['rank']
     return None
 
@@ -157,7 +225,7 @@ def draw_flow_curve(ax, x1, y1, x2, y2, start_color, end_color, alpha=0.7, width
             PathEffects.withStroke(linewidth=2.5, foreground='white')
         ])
 
-def create_visualization(data, output_file, title="Top 10 Movie Countries of Origin", subtitle=None, 
+def create_visualization(data, output_file, title="Top 10 Ranked Items", subtitle=None, 
                          max_entries_override=None):
     """Create the year-over-year ranking visualization with enhanced styling."""
     # Create figure and axes with improved proportions
@@ -233,15 +301,22 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
     data_prev = [item for item in data_prev_all if item['rank'] <= max_entries]
     data_curr = [item for item in data_curr_all if item['rank'] <= max_entries]
     
-    # Create lookups for positions and countries
+    # Create lookups for positions and items
     positions_prev = {}
     positions_curr = {}
-    countries_prev_top = set(item['country'] for item in data_prev)
-    countries_curr_top = set(item['country'] for item in data_curr)
+    items_prev_top = set(item['item'] for item in data_prev)
+    items_curr_top = set(item['item'] for item in data_curr)
     
     # Create a lookup for full data
-    country_region_prev = {item['country']: item.get('region', 'Unknown') for item in data_prev_all}
-    country_region_curr = {item['country']: item.get('region', 'Unknown') for item in data_curr_all}
+    item_category_prev = {item['item']: item.get('category', 'Unknown') for item in data_prev_all}
+    item_category_curr = {item['item']: item.get('category', 'Unknown') for item in data_curr_all}
+    
+    # Get all unique categories from the data
+    all_categories = set(item_category_prev.values()) | set(item_category_curr.values())
+    
+    # Generate colors for all categories
+    global CATEGORY_COLORS
+    CATEGORY_COLORS = generate_category_colors(all_categories)
     
     # Add subtle alternating row backgrounds for better readability
     for i in range(max_entries):
@@ -264,17 +339,17 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
     # Draw previous year rankings with enhanced styling
     for i, item in enumerate(data_prev):
         y_pos = top_y - i * spacing
-        positions_prev[item['country']] = (left_col_x, y_pos)
+        positions_prev[item['item']] = (left_col_x, y_pos)
         
         # Add subtle shadow for depth
         shadow = plt.Circle((left_col_x + 0.15, y_pos - 0.15), circle_radius,
                           color='#00000015', zorder=2)
         ax.add_artist(shadow)
         
-        # Draw circle with enhanced styling - use get for region
-        region = item.get('region', 'Unknown')
+        # Draw circle with enhanced styling - use get for category
+        category = item.get('category', 'Unknown')
         circle = plt.Circle((left_col_x, y_pos), circle_radius, 
-                           color=REGION_COLORS[region], alpha=0.9,
+                           color=CATEGORY_COLORS[category], alpha=0.9,
                            ec='white', lw=0.7, zorder=3)  # White edge
         ax.add_artist(circle)
         
@@ -284,9 +359,9 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                  ha='center', va='center', 
                  color='white', zorder=4)
         
-        # Add country name with improved typography and alignment
+        # Add item name with improved typography and alignment
         plt.text(left_col_x + 5, y_pos, 
-                 f"{item['country']}", 
+                 f"{item['item']}", 
                  fontsize=11, ha='left', va='center', 
                  color='#232323', zorder=4)
         
@@ -310,17 +385,17 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
     # Draw current year rankings with enhanced styling
     for i, item in enumerate(data_curr):
         y_pos = top_y - i * spacing
-        positions_curr[item['country']] = (right_col_x, y_pos)
+        positions_curr[item['item']] = (right_col_x, y_pos)
         
         # Add subtle shadow for depth
         shadow = plt.Circle((right_col_x + 0.15, y_pos - 0.15), circle_radius,
                           color='#00000015', zorder=2)
         ax.add_artist(shadow)
         
-        # Draw circle with enhanced styling - use get for region
-        region = item.get('region', 'Unknown')
+        # Draw circle with enhanced styling - use get for category
+        category = item.get('category', 'Unknown')
         circle = plt.Circle((right_col_x, y_pos), circle_radius, 
-                           color=REGION_COLORS[region], alpha=0.9,
+                           color=CATEGORY_COLORS[category], alpha=0.9,
                            ec='white', lw=0.7, zorder=3)  # White edge
         ax.add_artist(circle)
         
@@ -330,9 +405,9 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                  ha='center', va='center', 
                  color='white', zorder=4)
         
-        # Add country name with improved typography and alignment
+        # Add item name with improved typography and alignment
         plt.text(right_col_x + 5, y_pos, 
-                 f"{item['country']}", 
+                 f"{item['item']}", 
                  fontsize=11, ha='left', va='center', 
                  color='#232323', zorder=4)
         
@@ -354,9 +429,9 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                     color='#5A5A5A', fontstyle='italic', zorder=4)
         
         # Check if it's a new entry with enhanced styling
-        if item['country'] not in countries_prev_top:
+        if item['item'] not in items_prev_top:
             # Check if we have a previous rank beyond top shown
-            prev_rank = get_rank_in_data(item['country'], data_prev_all)
+            prev_rank = get_rank_in_data(item['item'], data_prev_all)
             if prev_rank:
                 prev_indicator_x = right_col_x - 12
                 
@@ -365,9 +440,9 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                                   color='#00000015', zorder=2)
                 ax.add_artist(shadow)
                 
-                # Use the same color as the parent circle with enhanced styling - use get for region
-                indicator_region = item.get('region', 'Unknown')
-                indicator_color = REGION_COLORS[indicator_region]
+                # Use the same color as the parent circle with enhanced styling - use get for category
+                indicator_category = item.get('category', 'Unknown')
+                indicator_color = CATEGORY_COLORS[indicator_category]
                 indicator = plt.Circle((prev_indicator_x, y_pos), small_circle_radius, 
                                       color=indicator_color, alpha=0.9,
                                       ec='white', lw=0.5, zorder=3)
@@ -393,34 +468,34 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                                 alpha=0.9), zorder=4)
     
     # Draw connecting curves between entries in both years
-    for country, (x2, y2) in positions_curr.items():
-        if country in positions_prev:
-            x1, y1 = positions_prev[country]
+    for item, (x2, y2) in positions_curr.items():
+        if item in positions_prev:
+            x1, y1 = positions_prev[item]
             
-            # Get colors for start and end points - use get for region
-            start_region = country_region_prev.get(country, 'Unknown')
-            end_region = country_region_curr.get(country, 'Unknown')
-            start_color = REGION_COLORS[start_region]
-            end_color = REGION_COLORS[end_region]
+            # Get colors for start and end points - use get for category
+            start_category = item_category_prev.get(item, 'Unknown')
+            end_category = item_category_curr.get(item, 'Unknown')
+            start_color = CATEGORY_COLORS[start_category]
+            end_color = CATEGORY_COLORS[end_category]
             
             # Calculate rank change - use dynamic year logic
-            start_rank = get_rank_in_data(country, data_prev_all) # Use all data for correct rank change calc
-            end_rank = get_rank_in_data(country, data_curr_all)
+            start_rank = get_rank_in_data(item, data_prev_all) # Use all data for correct rank change calc
+            end_rank = get_rank_in_data(item, data_curr_all)
             rank_change = None
             if start_rank is not None and end_rank is not None:
                  rank_change = start_rank - end_rank # Positive means moved up, negative means moved down
             
             # Calculate line width based on percentage/value or default
             width = 1.5 # Default width
-            item_curr = next((item for item in data_curr_all if item['country'] == country), None)
-            if item_curr:
-                if 'percentage' in item_curr:
-                    perc = item_curr['percentage']
+            item_curr_data = next((data_item for data_item in data_curr_all if data_item['item'] == item), None)
+            if item_curr_data:
+                if 'percentage' in item_curr_data:
+                    perc = item_curr_data['percentage']
                     width = max(0.6, min(2.8, (perc / 25) + 0.6))
-                elif 'value' in item_curr:
+                elif 'value' in item_curr_data:
                     # Use value for width if percentage is missing, needs scaling
                     try:
-                        val = float(item_curr['value'])
+                        val = float(item_curr_data['value'])
                         # Example scaling: Adjust based on expected value range
                         # Assuming values are roughly comparable to percentages / 10
                         width = max(0.6, min(2.8, (val * 2.5) + 0.6)) 
@@ -437,46 +512,46 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                                    alpha=0.9, zorder=1)
     ax.add_patch(legend_container)
     
-    # Add region legend with enhanced grouping and styling
-    legend_y = 8  # Adjusted positioning
+    # Add category legend with fully dynamic layout
+    legend_y = 8  # Starting y position
+    legend_x_start = 10  # Starting x position
+    legend_x_spacing = 30  # Horizontal spacing between categories
+    legend_y_spacing = 2.7  # Vertical spacing between categories
     
-    # Group regions by continent for better organization
-    continent_groups = {
-        'Americas': ['North America', 'Latin America'],
-        'Europe & Africa': ['Europe', 'Africa'],
-        'Asia-Pacific': ['Asia', 'Oceania']
-    }
+    # Get all active categories (ones that actually appear in the data)
+    active_categories = sorted(list(
+        set(item_category_prev.values()) | set(item_category_curr.values())
+    ))
     
-    # Draw group headers with improved styling - adjusted positions
-    group_x_positions = [10, 40, 70]
+    # Calculate how many categories to place in each column (max 4 per column)
+    items_per_column = min(4, max(1, len(active_categories) // 3 + 1))
     
-    for i, (group_name, regions) in enumerate(continent_groups.items()):
-        group_x = group_x_positions[i]
-        plt.text(group_x, legend_y + 2.5, group_name, 
-                fontsize=9.5, fontweight='bold', ha='left', va='center',
-                color='#454545', zorder=4)
+    # Draw category circles with their labels
+    for i, category in enumerate(active_categories):
+        # Calculate position in the grid
+        column = i // items_per_column
+        row = i % items_per_column
         
-        # Draw regions in each group with enhanced styling
-        for j, region in enumerate(regions):
-            region_x = group_x + 1
-            region_y = legend_y - j * 2.7
-            
-            # Add subtle shadow
-            shadow = plt.Circle((region_x + 0.1, region_y - 0.1), 1.5, 
-                               color='#00000015', zorder=2)
-            ax.add_artist(shadow)
-            
-            # Draw circle with improved styling - use get for region color
-            region_color = REGION_COLORS.get(region, REGION_COLORS['Unknown'])
-            circle = plt.Circle((region_x, region_y), 1.5, 
-                               color=region_color, alpha=0.9,
-                               ec='white', lw=0.5, zorder=3)
-            ax.add_artist(circle)
-            
-            # Add region name with improved typography
-            plt.text(region_x + 3, region_y, region, 
-                    fontsize=9, ha='left', va='center', 
-                    color='#333333', zorder=4)
+        # Set x and y coordinates
+        category_x = legend_x_start + (column * legend_x_spacing)
+        category_y = legend_y - (row * legend_y_spacing)
+        
+        # Add subtle shadow
+        shadow = plt.Circle((category_x + 0.1, category_y - 0.1), 1.5, 
+                           color='#00000015', zorder=2)
+        ax.add_artist(shadow)
+        
+        # Draw circle with color from our generated color dictionary
+        category_color = CATEGORY_COLORS.get(category, CATEGORY_COLORS['Unknown'])
+        circle = plt.Circle((category_x, category_y), 1.5, 
+                           color=category_color, alpha=0.9,
+                           ec='white', lw=0.5, zorder=3)
+        ax.add_artist(circle)
+        
+        # Add category name with improved typography
+        plt.text(category_x + 3, category_y, category, 
+                fontsize=9, ha='left', va='center', 
+                color='#333333', zorder=4)
     
     # Save the figure with enhanced quality settings
     plt.savefig(output_file, bbox_inches='tight', dpi=300, 
@@ -492,7 +567,7 @@ def main():
     parser = argparse.ArgumentParser(description='Generate year-over-year ranking visualization.')
     parser.add_argument('-o', '--output', default='ranking_v2.png',
                         help='Output file name (PNG format)')
-    parser.add_argument('-t', '--title', default='Top 10 Movie Countries of Origin',
+    parser.add_argument('-t', '--title', default='Top 10 Ranked Items',
                         help='Chart title')
     parser.add_argument('-s', '--subtitle', 
                         help='Chart subtitle (defaults to a generated subtitle)')

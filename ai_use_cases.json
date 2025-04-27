@@ -1,0 +1,36 @@
+{
+  "2024": [
+    {"rank": 1, "item": "Generating ideas", "category": "Content Creation", "percentage": 24.5},
+    {"rank": 2, "item": "Therapy/companionship", "category": "Personal Support", "percentage": 18.7},
+    {"rank": 3, "item": "Specific search", "category": "Research & Analysis", "percentage": 16.2},
+    {"rank": 4, "item": "Editing text", "category": "Content Creation", "percentage": 13.8},
+    {"rank": 5, "item": "Exploring topics of interest", "category": "Learning & Education", "percentage": 10.4},
+    {"rank": 6, "item": "Fun and nonsense", "category": "Creativity & Recreation", "percentage": 8.9},
+    {"rank": 7, "item": "Troubleshooting", "category": "Technical Assistance", "percentage": 7.6},
+    {"rank": 8, "item": "Enhanced learning", "category": "Learning & Education", "percentage": 6.8},
+    {"rank": 9, "item": "Personalized learning", "category": "Learning & Education", "percentage": 6.3},
+    {"rank": 10, "item": "General advice", "category": "Personal Support", "percentage": 5.7},
+    {"rank": 11, "item": "Coding help", "category": "Technical Assistance", "percentage": 5.1},
+    {"rank": 12, "item": "Summarizing content", "category": "Content Creation", "percentage": 4.8},
+    {"rank": 13, "item": "Finding purpose", "category": "Personal Support", "percentage": 4.2},
+    {"rank": 14, "item": "Organizing my life", "category": "Personal Support", "percentage": 3.9},
+    {"rank": 15, "item": "Creating art", "category": "Creativity & Recreation", "percentage": 3.5}
+  ],
+  "2025": [
+    {"rank": 1, "item": "Therapy/companionship", "category": "Personal Support", "percentage": 22.6},
+    {"rank": 2, "item": "Organizing my life", "category": "Personal Support", "percentage": 19.8},
+    {"rank": 3, "item": "Finding purpose", "category": "Personal Support", "percentage": 17.5},
+    {"rank": 4, "item": "Enhanced learning", "category": "Learning & Education", "percentage": 13.0},
+    {"rank": 5, "item": "Generating code", "category": "Technical Assistance", "percentage": 10.7},
+    {"rank": 6, "item": "Generating ideas", "category": "Content Creation", "percentage": 9.3},
+    {"rank": 7, "item": "Fun and nonsense", "category": "Creativity & Recreation", "percentage": 8.4},
+    {"rank": 8, "item": "Improving code", "category": "Technical Assistance", "percentage": 7.9},
+    {"rank": 9, "item": "Creativity", "category": "Content Creation", "percentage": 7.1},
+    {"rank": 10, "item": "Healthier living", "category": "Personal Support", "percentage": 6.5},
+    {"rank": 11, "item": "Writing essays", "category": "Content Creation", "percentage": 5.8},
+    {"rank": 12, "item": "Specific search", "category": "Research & Analysis", "percentage": 5.3},
+    {"rank": 13, "item": "Editing text", "category": "Content Creation", "percentage": 4.7},
+    {"rank": 14, "item": "Exploring topics of interest", "category": "Learning & Education", "percentage": 4.0},
+    {"rank": 15, "item": "Troubleshooting", "category": "Technical Assistance", "percentage": 3.2}
+  ]
+}
