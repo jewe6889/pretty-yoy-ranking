@@ -46,18 +46,6 @@ python generate_ranking.py -d sample_data.json
 python generate_ranking.py --max-entries 15
 ```
 
-### Dynamic Code Processing
-
-Transform your data before visualization:
-
-```bash
-# Sort items by percentage
-python generate_ranking.py -d sample_data.json -c "data['2023'] = sorted(data['2023'], key=lambda x: x['percentage'], reverse=True)"
-
-# Filter and transform data
-python generate_ranking.py -d sample_data.json -c "data['2023'] = [x for x in data['2023'] if x['percentage'] > 1.0]" -c "for item in data['2024']: item['percentage'] *= 1.5"
-```
-
 ## Data Format
 
 The data should be provided in JSON format:
@@ -89,14 +77,6 @@ Each item requires these properties:
 - `percentage`: Numeric value representing the item's share
 
 > **Note**: Include data beyond the top 10 (up to rank 20 or more) to properly show items that moved in or out of the top rankings.
-
-## Customization
-
-The visualization supports various customization options:
-- Colors for different categories
-- Line thickness based on percentage values
-- Custom titles and subtitles
-- Output file format and resolution
 
 ## License
 
