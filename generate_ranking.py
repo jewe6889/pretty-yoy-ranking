@@ -158,7 +158,7 @@ def draw_flow_curve(ax, x1, y1, x2, y2, start_color, end_color, alpha=0.7, width
         ])
 
 def create_visualization(data, output_file, title="Top 10 Movie Countries of Origin", subtitle=None, 
-                         source=None, watermark=None, show_values=True, max_entries_override=None):
+                         max_entries_override=None):
     """Create the year-over-year ranking visualization with enhanced styling."""
     # Create figure and axes with improved proportions
     fig = plt.figure(figsize=(12, 10), dpi=300) # Adjusted figsize slightly
@@ -291,22 +291,21 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                  color='#232323', zorder=4)
         
         # Add percentage/value with improved styling and positioning
-        if show_values:
-            value_text = ""
-            if 'percentage' in item:
-                value_text = f"{item['percentage']}%"
-            elif 'value' in item:
-                # Format value nicely if it's numeric
-                try:
-                    value_text = f"{float(item['value']):.2f}"
-                except (ValueError, TypeError):
-                    value_text = str(item['value']) # Fallback to string if not float
+        value_text = ""
+        if 'percentage' in item:
+            value_text = f"{item['percentage']}%"
+        elif 'value' in item:
+            # Format value nicely if it's numeric
+            try:
+                value_text = f"{float(item['value']):.2f}"
+            except (ValueError, TypeError):
+                value_text = str(item['value']) # Fallback to string if not float
 
-            if value_text:
-                plt.text(left_col_x + 5, y_pos - 1.5,
-                        value_text,
-                        fontsize=9, ha='left', va='center', 
-                        color='#5A5A5A', fontstyle='italic', zorder=4)
+        if value_text:
+            plt.text(left_col_x + 5, y_pos - 1.5,
+                    value_text,
+                    fontsize=9, ha='left', va='center', 
+                    color='#5A5A5A', fontstyle='italic', zorder=4)
     
     # Draw current year rankings with enhanced styling
     for i, item in enumerate(data_curr):
@@ -338,22 +337,21 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                  color='#232323', zorder=4)
         
         # Add percentage/value with improved styling and positioning
-        if show_values:
-            value_text = ""
-            if 'percentage' in item:
-                value_text = f"{item['percentage']}%"
-            elif 'value' in item:
-                # Format value nicely if it's numeric
-                try:
-                    value_text = f"{float(item['value']):.2f}"
-                except (ValueError, TypeError):
-                    value_text = str(item['value']) # Fallback to string if not float
+        value_text = ""
+        if 'percentage' in item:
+            value_text = f"{item['percentage']}%"
+        elif 'value' in item:
+            # Format value nicely if it's numeric
+            try:
+                value_text = f"{float(item['value']):.2f}"
+            except (ValueError, TypeError):
+                value_text = str(item['value']) # Fallback to string if not float
 
-            if value_text:
-                plt.text(right_col_x + 5, y_pos - 1.5,
-                        value_text,
-                        fontsize=9, ha='left', va='center', 
-                        color='#5A5A5A', fontstyle='italic', zorder=4)
+        if value_text:
+            plt.text(right_col_x + 5, y_pos - 1.5,
+                    value_text,
+                    fontsize=9, ha='left', va='center', 
+                    color='#5A5A5A', fontstyle='italic', zorder=4)
         
         # Check if it's a new entry with enhanced styling
         if item['country'] not in countries_prev_top:
@@ -444,7 +442,7 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
     
     # Group regions by continent for better organization
     continent_groups = {
-        'Americas': ['North America', 'South America'],
+        'Americas': ['North America', 'Latin America'],
         'Europe & Africa': ['Europe', 'Africa'],
         'Asia-Pacific': ['Asia', 'Oceania']
     }
@@ -480,16 +478,6 @@ def create_visualization(data, output_file, title="Top 10 Movie Countries of Ori
                     fontsize=9, ha='left', va='center', 
                     color='#333333', zorder=4)
     
-    # Add enhanced source citation with custom source text
-    source_text = source if source else "Source: Dummy data for illustration purposes"
-    plt.figtext(0.05, 0.02, source_text,
-                fontsize=8, style='italic', color='#777777')
-    
-    # Add watermark/credit with custom text
-    watermark_text = watermark if watermark else "Generated with pretty-yoy-ranking"
-    plt.figtext(0.95, 0.02, watermark_text,
-               fontsize=7, style='italic', color='#AAAAAA', ha='right')
-    
     # Save the figure with enhanced quality settings
     plt.savefig(output_file, bbox_inches='tight', dpi=300, 
                facecolor='white', edgecolor='none')
@@ -510,12 +498,6 @@ def main():
                         help='Chart subtitle (defaults to a generated subtitle)')
     parser.add_argument('-d', '--data', default='sample_data.json',
                         help='Path to JSON file with ranking data')
-    parser.add_argument('--source', 
-                        help='Custom source citation text')
-    parser.add_argument('--watermark', 
-                        help='Custom watermark text')
-    parser.add_argument('--hide-values', action='store_true',
-                        help='Hide percentage/value text in the visualization')
     parser.add_argument('--max-entries', type=int,
                         help='Maximum number of entries to show (default is 10)')
     
@@ -540,10 +522,7 @@ def main():
         data, 
         args.output, 
         args.title, 
-        args.subtitle, 
-        args.source, 
-        args.watermark,
-        not args.hide_values,
+        args.subtitle,
         args.max_entries
     )
 
