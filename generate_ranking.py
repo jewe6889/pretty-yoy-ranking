@@ -5,17 +5,17 @@ Version 2.0 with integrated flow lines for dropped items.
 """
 
 import argparse
-import matplotlib.pyplot as plt
+import csv
+import hashlib
+import json
 import matplotlib.patches as patches
+import matplotlib.patheffects as PathEffects
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import json
-from matplotlib.path import Path
-from matplotlib.colors import to_rgba, LinearSegmentedColormap
-import matplotlib.patheffects as PathEffects
 from matplotlib import rcParams
-import hashlib
-from matplotlib.colors import hsv_to_rgb
+from matplotlib.colors import hsv_to_rgb, to_rgba, LinearSegmentedColormap
+from matplotlib.path import Path
 
 # Set up high-quality visualization defaults
 plt.rcParams['font.family'] = 'sans-serif'
@@ -563,6 +563,206 @@ def load_data_from_json(json_file):
     with open(json_file, 'r') as f:
         return json.load(f)
 
+
+def filter_data(data, filter_category=None, filter_rank_min=None, filter_rank_max=None):
+    """Return a filtered copy of data by category and/or rank range."""
+    categories = None
+    if filter_category:
+        categories = {c.strip() for c in filter_category.split(',')}
+
+    filtered = {}
+    for year, entries in data.items():
+        year_entries = list(entries)
+        if categories:
+            year_entries = [e for e in year_entries if e.get('category', '') in categories]
+        if filter_rank_min is not None:
+            year_entries = [e for e in year_entries if e.get('rank', 0) >= filter_rank_min]
+        if filter_rank_max is not None:
+            year_entries = [e for e in year_entries if e.get('rank', 0) <= filter_rank_max]
+        filtered[year] = year_entries
+    return filtered
+
+
+def _get_numeric_value(entry):
+    """Extract a numeric metric value from an entry (percentage or value field)."""
+    v = entry.get('percentage', entry.get('value'))
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (ValueError, TypeError):
+        return None
+
+
+def sort_entries(entries, sort_by='rank', sort_order='asc'):
+    """Return a sorted copy of entries by the specified field."""
+    reverse = sort_order == 'desc'
+    if sort_by in ('percentage', 'value'):
+        return sorted(entries, key=lambda e: (_get_numeric_value(e) or 0.0), reverse=reverse)
+    if sort_by == 'rank':
+        return sorted(entries, key=lambda e: e.get('rank', 0), reverse=reverse)
+    if sort_by == 'item':
+        return sorted(entries, key=lambda e: e.get('item', ''), reverse=reverse)
+    if sort_by == 'category':
+        return sorted(entries, key=lambda e: e.get('category', ''), reverse=reverse)
+    return list(entries)
+
+
+def compute_insights(data):
+    """Compute statistical insights across all years in the data."""
+    insights = {}
+    years = sorted(data.keys())
+
+    for year in years:
+        entries = data[year]
+        if not entries:
+            continue
+        values = [v for v in (_get_numeric_value(e) for e in entries) if v is not None]
+        categories = {}
+        for e in entries:
+            cat = e.get('category', 'Unknown')
+            categories[cat] = categories.get(cat, 0) + 1
+        top_cat = max(categories, key=categories.get) if categories else 'N/A'
+        insights[year] = {
+            'total_entries': len(entries),
+            'categories': categories,
+            'top_category': top_cat,
+            'avg_value': sum(values) / len(values) if values else None,
+            'max_value': max(values) if values else None,
+            'min_value': min(values) if values else None,
+        }
+
+    if len(years) >= 2:
+        prev_year = years[-2]
+        curr_year = years[-1]
+        prev_items = {e['item']: e['rank'] for e in data[prev_year]}
+        curr_items = {e['item']: e['rank'] for e in data[curr_year]}
+
+        biggest_rise = None
+        biggest_drop = None
+        for item, curr_rank in curr_items.items():
+            if item in prev_items:
+                change = prev_items[item] - curr_rank  # positive = moved up
+                if biggest_rise is None or change > biggest_rise[1]:
+                    biggest_rise = (item, change)
+                if biggest_drop is None or change < biggest_drop[1]:
+                    biggest_drop = (item, change)
+
+        insights['_changes'] = {
+            'prev_year': prev_year,
+            'curr_year': curr_year,
+            'biggest_rise': biggest_rise,
+            'biggest_drop': biggest_drop,
+            'new_entries': [item for item in curr_items if item not in prev_items],
+            'dropped_entries': [item for item in prev_items if item not in curr_items],
+        }
+
+    return insights
+
+
+def _format_value(entry):
+    """Return a human-readable string for an entry's metric value."""
+    num = _get_numeric_value(entry)
+    if num is not None:
+        return f"{num:.2f}%"
+    raw = entry.get('percentage', entry.get('value', ''))
+    return str(raw) if raw != '' else ''
+
+
+def print_database_view(data, sort_by='rank', sort_order='asc'):
+    """Print ranking data as a formatted table followed by statistical insights."""
+    years = sorted(data.keys())
+
+    # Compute dynamic column widths from actual data so nothing is truncated
+    all_entries = [(year, e) for year, entries in data.items() for e in entries]
+    w_year = max((len(str(year)) for year, _ in all_entries), default=4)
+    w_year = max(w_year, len('Year'))
+    w_rank = max((len(str(e.get('rank', ''))) for _, e in all_entries), default=4)
+    w_rank = max(w_rank, len('Rank'))
+    w_item = max((len(e.get('item', '')) for _, e in all_entries), default=4)
+    w_item = max(w_item, len('Item'))
+    w_cat = max((len(e.get('category', 'Unknown')) for _, e in all_entries), default=8)
+    w_cat = max(w_cat, len('Category'))
+    w_val = max((len(_format_value(e)) for _, e in all_entries), default=5)
+    w_val = max(w_val, len('Value'))
+    col_widths = [w_year, w_rank, w_item, w_cat, w_val]
+
+    headers = ['Year', 'Rank', 'Item', 'Category', 'Value']
+    sep = '+' + '+'.join('-' * (w + 2) for w in col_widths) + '+'
+    header_row = '| ' + ' | '.join(h.ljust(w) for h, w in zip(headers, col_widths)) + ' |'
+
+    print(sep)
+    print(header_row)
+    print(sep)
+
+    for year in years:
+        entries = sort_entries(data[year], sort_by, sort_order)
+        for e in entries:
+            cells = [year, str(e.get('rank', '')), e.get('item', ''), e.get('category', 'Unknown'), _format_value(e)]
+            row = '| ' + ' | '.join(str(c).ljust(w) for c, w in zip(cells, col_widths)) + ' |'
+            print(row)
+        print(sep)
+
+    insights = compute_insights(data)
+    print()
+    print('=== STATISTICAL INSIGHTS ===')
+    print()
+    for year in years:
+        if year not in insights:
+            continue
+        ins = insights[year]
+        print(f"  {year}:")
+        print(f"    Total entries : {ins['total_entries']}")
+        if ins.get('avg_value') is not None:
+            print(f"    Avg value     : {ins['avg_value']:.2f}%")
+            print(f"    Max value     : {ins['max_value']:.2f}%")
+            print(f"    Min value     : {ins['min_value']:.2f}%")
+        top_cat = ins['top_category']
+        top_count = ins['categories'].get(top_cat, 0)
+        print(f"    Top category  : {top_cat} ({top_count} entries)")
+        cats_str = ', '.join(
+            f"{k} ({v})" for k, v in sorted(ins['categories'].items(), key=lambda x: -x[1])
+        )
+        print(f"    Categories    : {cats_str}")
+        print()
+
+    if '_changes' in insights:
+        ch = insights['_changes']
+        print(f"  Changes from {ch['prev_year']} to {ch['curr_year']}:")
+        if ch['biggest_rise']:
+            print(f"    Biggest rise  : {ch['biggest_rise'][0]} (+{ch['biggest_rise'][1]} ranks)")
+        if ch['biggest_drop'] and ch['biggest_drop'][1] < 0:
+            print(f"    Biggest drop  : {ch['biggest_drop'][0]} ({ch['biggest_drop'][1]} ranks)")
+        if ch['new_entries']:
+            print(f"    New entries   : {', '.join(ch['new_entries'])}")
+        if ch['dropped_entries']:
+            print(f"    Dropped       : {', '.join(ch['dropped_entries'])}")
+        print()
+
+
+def export_to_csv(data, output_file, sort_by='rank', sort_order='asc'):
+    """Export ranking data to a CSV file."""
+    years = sorted(data.keys())
+    rows = []
+    for year in years:
+        entries = sort_entries(data[year], sort_by, sort_order)
+        for e in entries:
+            rows.append({
+                'year': year,
+                'rank': e.get('rank', ''),
+                'item': e.get('item', ''),
+                'category': e.get('category', 'Unknown'),
+                'value': _format_value(e),
+            })
+
+    with open(output_file, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=['year', 'rank', 'item', 'category', 'value'])
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f"Data exported to {output_file} ({len(rows)} rows)")
+
+
 def main():
     parser = argparse.ArgumentParser(description='Generate year-over-year ranking visualization.')
     parser.add_argument('-o', '--output', default='ranking_v2.png',
@@ -575,6 +775,21 @@ def main():
                         help='Path to JSON file with ranking data')
     parser.add_argument('--max-entries', type=int,
                         help='Maximum number of entries to show (default is 10)')
+    parser.add_argument('--database', '--insights', action='store_true', dest='database',
+                        help='Show ranking data as a tabular database view with statistics instead of generating a chart')
+    parser.add_argument('--filter-category',
+                        help='Filter entries by category; use a comma-separated list for multiple categories')
+    parser.add_argument('--filter-rank-min', type=int,
+                        help='Only include entries with rank >= this value')
+    parser.add_argument('--filter-rank-max', type=int,
+                        help='Only include entries with rank <= this value')
+    parser.add_argument('--sort-by', choices=['rank', 'item', 'category', 'value', 'percentage'],
+                        default='rank',
+                        help='Field to sort entries by in database view or CSV export (default: rank)')
+    parser.add_argument('--sort-order', choices=['asc', 'desc'], default='asc',
+                        help='Sort order for --sort-by (default: asc)')
+    parser.add_argument('--export-csv',
+                        help='Export filtered/sorted data to a CSV file')
     
     args = parser.parse_args()
     
@@ -591,7 +806,24 @@ def main():
         print(f"Error loading data from {args.data}: {e}")
         print("Please provide a valid JSON data file.")
         return
-    
+
+    # Apply filters to the data
+    data = filter_data(
+        data,
+        filter_category=args.filter_category,
+        filter_rank_min=args.filter_rank_min,
+        filter_rank_max=args.filter_rank_max,
+    )
+
+    # Export to CSV if requested
+    if args.export_csv:
+        export_to_csv(data, args.export_csv, sort_by=args.sort_by, sort_order=args.sort_order)
+
+    # Database/insights view: print table and statistics, skip chart generation
+    if args.database:
+        print_database_view(data, sort_by=args.sort_by, sort_order=args.sort_order)
+        return
+
     # Create visualization with all customization options
     create_visualization(
         data, 
