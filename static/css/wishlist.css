@@ -1,0 +1,290 @@
+/* ─── Reset / base ──────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f6f7fb;
+  color: #1a1a2e;
+  min-height: 100vh;
+}
+
+/* ─── Layout ─────────────────────────────────────────────────────────────── */
+.wishlist-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: #1a1a2e;
+}
+
+/* ─── Search row ─────────────────────────────────────────────────────────── */
+.search-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1 1 220px;
+  padding: 0.55rem 0.85rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: #fff;
+  transition: border-color 0.15s;
+  outline: none;
+}
+
+.search-input:focus { border-color: #6c63ff; }
+
+.status-select {
+  padding: 0.55rem 0.85rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.status-select:focus { border-color: #6c63ff; }
+
+/* ─── Filter sections ────────────────────────────────────────────────────── */
+.filter-section {
+  margin-bottom: 1.25rem;
+}
+
+.filter-heading {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  margin-bottom: 0.45rem;
+}
+
+/* ─── Pills track (horizontal scroll) ───────────────────────────────────── */
+.pills-track {
+  display: flex;
+  flex-direction: row;
+  gap: 0.45rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;           /* room for the scrollbar */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+
+  /* hide scrollbar visually but keep it functional */
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.pills-track::-webkit-scrollbar {
+  height: 4px;
+}
+.pills-track::-webkit-scrollbar-track {
+  background: transparent;
+}
+.pills-track::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+/* ─── Individual pill ────────────────────────────────────────────────────── */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.3rem 0.7rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.13s, border-color 0.13s, color 0.13s;
+}
+
+.pill:hover {
+  background: #ede9fe;
+  border-color: #7c3aed;
+  color: #5b21b6;
+}
+
+.pill.pill--active {
+  background: #6c63ff;
+  border-color: #6c63ff;
+  color: #fff;
+}
+
+.pill.pill--active .pill-count {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Count badge inside a pill */
+.pill-count {
+  font-size: 0.68em;
+  font-weight: 400;
+  color: #9ca3af;
+  line-height: 1;
+}
+
+.pills-loading {
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+/* ─── Active filter summary ──────────────────────────────────────────────── */
+.active-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: #ede9fe;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.active-filters-label {
+  font-weight: 600;
+  color: #5b21b6;
+}
+
+.active-filter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.15rem 0.55rem;
+  background: #6c63ff;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.clear-filters-btn {
+  margin-left: auto;
+  padding: 0.2rem 0.65rem;
+  background: none;
+  border: 1.5px solid #7c3aed;
+  border-radius: 6px;
+  color: #7c3aed;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s;
+}
+
+.clear-filters-btn:hover {
+  background: #7c3aed;
+  color: #fff;
+}
+
+/* ─── Results count ──────────────────────────────────────────────────────── */
+.results-count {
+  font-size: 0.82rem;
+  color: #6b7280;
+  margin-bottom: 0.85rem;
+}
+
+/* ─── Entries grid ───────────────────────────────────────────────────────── */
+.entries-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+/* ─── Entry card ─────────────────────────────────────────────────────────── */
+.entry-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.entry-card:hover {
+  box-shadow: 0 4px 18px rgba(108, 99, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.entry-title {
+  font-size: 0.97rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  line-height: 1.3;
+}
+
+.entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.entry-status {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.entry-status--wishlist  { background: #dbeafe; color: #1d4ed8; }
+.entry-status--watching  { background: #d1fae5; color: #065f46; }
+.entry-status--completed { background: #f3e8ff; color: #6d28d9; }
+
+.entry-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+
+.entry-genre-pill,
+.entry-tag-pill {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.entry-genre-pill { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+
+.entry-score {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #6c63ff;
+}
+
+/* ─── Empty / placeholder state ─────────────────────────────────────────── */
+.entry-placeholder,
+.entry-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anime Wishlist</title>
+  <link rel="stylesheet" href="/static/css/wishlist.css" />
+</head>
+<body>
+
+<div class="wishlist-container">
+  <h1 class="page-title">Anime Wishlist</h1>
+
+  <!-- ── Search ─────────────────────────────────────────────────── -->
+  <div class="search-row">
+    <input
+      id="search-input"
+      class="search-input"
+      type="search"
+      placeholder="Search by title…"
+      aria-label="Search wishlist by title"
+    />
+    <select id="status-select" class="status-select" aria-label="Filter by status">
+      <option value="">All statuses</option>
+      <option value="Wishlist">Wishlist</option>
+      <option value="Watching">Watching</option>
+      <option value="Completed">Completed</option>
+    </select>
+  </div>
+
+  <!-- ── Genres pills ──────────────────────────────────────────── -->
+  <section class="filter-section" aria-labelledby="genres-heading">
+    <h2 id="genres-heading" class="filter-heading">Genres</h2>
+    <div id="genres-pills" class="pills-track" role="group" aria-label="Filter by genre">
+      <span class="pills-loading">Loading…</span>
+    </div>
+  </section>
+
+  <!-- ── Tags pills ────────────────────────────────────────────── -->
+  <section class="filter-section" aria-labelledby="tags-heading">
+    <h2 id="tags-heading" class="filter-heading">Tags</h2>
+    <div id="tags-pills" class="pills-track" role="group" aria-label="Filter by tag">
+      <span class="pills-loading">Loading…</span>
+    </div>
+  </section>
+
+  <!-- ── Active filter summary ─────────────────────────────────── -->
+  <div id="active-filters" class="active-filters" hidden>
+    <span class="active-filters-label">Active filters:</span>
+    <span id="active-filters-list"></span>
+    <button id="clear-filters" class="clear-filters-btn" type="button">Clear all</button>
+  </div>
+
+  <!-- ── Results ───────────────────────────────────────────────── -->
+  <p id="results-count" class="results-count"></p>
+
+  <ul id="wishlist-entries" class="entries-grid" aria-live="polite" aria-label="Wishlist entries">
+    <li class="entry-placeholder">Loading entries…</li>
+  </ul>
+</div>
+
+<script src="/static/js/wishlist.js"></script>
+</body>
+</html>
