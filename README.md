@@ -15,6 +15,11 @@ A CLI tool to generate beautiful year-over-year ranking visualizations showing h
 - High-resolution output (300 DPI)
 - Special indicators for items moving in/out of top rankings
 - Dynamic data processing via custom Python code
+- **Database view**: tabular display of all ranking data with filtering and sorting
+- **Insights summary**: statistical analysis with year-over-year change detection
+- **CSV export**: export filtered and sorted data to CSV for further analysis
+- **Filtering**: filter by category, rank range, or percentage range
+- **Sorting**: sort by rank, item name, category, or percentage
 
 ## Installation
 
@@ -44,6 +49,57 @@ python generate_ranking.py -d sample_data.json
 
 # Set maximum entries to display (default is 10)
 python generate_ranking.py --max-entries 15
+```
+
+### Database View
+
+Print all ranking data in a tabular database-style view:
+
+```bash
+# Show all data as a table
+python generate_ranking.py --database
+
+# Filter by one or more categories (case-insensitive, comma-separated)
+python generate_ranking.py --database --filter-category Electronics,Software
+
+# Filter by rank range
+python generate_ranking.py --database --filter-rank-min 1 --filter-rank-max 5
+
+# Filter by percentage range
+python generate_ranking.py --database --filter-min-percentage 5.0
+
+# Sort by a specific field
+python generate_ranking.py --database --sort-by percentage --sort-order desc
+```
+
+### Insights Summary
+
+Print statistical analysis and year-over-year change detection:
+
+```bash
+# Show insights for all data
+python generate_ranking.py --insights
+
+# Combine with filters
+python generate_ranking.py --insights --filter-category Asia
+```
+
+### CSV Export
+
+Export filtered and sorted data to a CSV file:
+
+```bash
+# Export all data
+python generate_ranking.py --export-csv output.csv
+
+# Export top-5 entries per year, sorted by percentage
+python generate_ranking.py --export-csv top5.csv --filter-rank-max 5 --sort-by percentage --sort-order desc
+```
+
+You can combine `--database`, `--insights`, and `--export-csv` in one command:
+
+```bash
+python generate_ranking.py --database --insights --export-csv output.csv --filter-category Europe
 ```
 
 ## Data Format

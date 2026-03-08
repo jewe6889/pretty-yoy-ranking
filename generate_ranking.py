@@ -563,22 +563,241 @@ def load_data_from_json(json_file):
     with open(json_file, 'r') as f:
         return json.load(f)
 
+
+def apply_filters(entries, filter_categories=None, rank_min=None, rank_max=None,
+                  min_percentage=None, max_percentage=None):
+    """Apply category, rank range, and percentage filters to a list of entries."""
+    result = list(entries)
+    if filter_categories:
+        cats = {c.strip().lower() for c in filter_categories.split(',')}
+        result = [e for e in result if e.get('category', '').lower() in cats]
+    if rank_min is not None:
+        result = [e for e in result if e.get('rank', 0) >= rank_min]
+    if rank_max is not None:
+        result = [e for e in result if e.get('rank', 0) <= rank_max]
+    if min_percentage is not None:
+        result = [e for e in result if e.get('percentage', 0) >= min_percentage]
+    if max_percentage is not None:
+        result = [e for e in result if e.get('percentage', 0) <= max_percentage]
+    return result
+
+
+def sort_entries(entries, sort_by='rank', sort_order='asc'):
+    """Sort a list of entries by the specified field."""
+    reverse = sort_order.lower() == 'desc'
+    key_map = {
+        'rank': lambda e: e.get('rank', 0),
+        'item': lambda e: e.get('item', '').lower(),
+        'category': lambda e: e.get('category', '').lower(),
+        'percentage': lambda e: e.get('percentage', 0),
+    }
+    key_fn = key_map.get(sort_by.lower(), key_map['rank'])
+    return sorted(entries, key=key_fn, reverse=reverse)
+
+
+def print_database_view(data, filter_categories=None, rank_min=None, rank_max=None,
+                        min_percentage=None, max_percentage=None,
+                        sort_by='rank', sort_order='asc'):
+    """Print ranking data in a formatted tabular database view."""
+    years = sorted(data.keys())
+    col_widths = {'year': 6, 'rank': 6, 'item': 30, 'category': 20, 'percentage': 12}
+    header_fmt = (
+        f"{'Year':<{col_widths['year']}}  "
+        f"{'Rank':<{col_widths['rank']}}  "
+        f"{'Item':<{col_widths['item']}}  "
+        f"{'Category':<{col_widths['category']}}  "
+        f"{'Percentage':>{col_widths['percentage']}}"
+    )
+    separator = '-' * len(header_fmt)
+
+    print("\n=== Database View ===")
+    print(separator)
+    print(header_fmt)
+    print(separator)
+
+    total_rows = 0
+    for year in years:
+        entries = data[year]
+        filtered = apply_filters(
+            entries,
+            filter_categories=filter_categories,
+            rank_min=rank_min,
+            rank_max=rank_max,
+            min_percentage=min_percentage,
+            max_percentage=max_percentage,
+        )
+        sorted_entries = sort_entries(filtered, sort_by=sort_by, sort_order=sort_order)
+        for entry in sorted_entries:
+            item_name = entry.get('item', '')
+            category = entry.get('category', '')
+            rank = entry.get('rank', '')
+            pct = entry.get('percentage', '')
+            pct_str = f"{pct:.2f}%" if isinstance(pct, (int, float)) else str(pct)
+            print(
+                f"{str(year):<{col_widths['year']}}  "
+                f"{str(rank):<{col_widths['rank']}}  "
+                f"{item_name:<{col_widths['item']}}  "
+                f"{category:<{col_widths['category']}}  "
+                f"{pct_str:>{col_widths['percentage']}}"
+            )
+            total_rows += 1
+
+    print(separator)
+    print(f"Total rows: {total_rows}")
+
+
+def export_to_csv(data, csv_file, filter_categories=None, rank_min=None, rank_max=None,
+                  min_percentage=None, max_percentage=None,
+                  sort_by='rank', sort_order='asc'):
+    """Export filtered and sorted ranking data to a CSV file."""
+    years = sorted(data.keys())
+    rows = []
+    for year in years:
+        entries = data[year]
+        filtered = apply_filters(
+            entries,
+            filter_categories=filter_categories,
+            rank_min=rank_min,
+            rank_max=rank_max,
+            min_percentage=min_percentage,
+            max_percentage=max_percentage,
+        )
+        sorted_entries = sort_entries(filtered, sort_by=sort_by, sort_order=sort_order)
+        for entry in sorted_entries:
+            rows.append({
+                'year': year,
+                'rank': entry.get('rank', ''),
+                'item': entry.get('item', ''),
+                'category': entry.get('category', ''),
+                'percentage': entry.get('percentage', ''),
+            })
+    df = pd.DataFrame(rows, columns=['year', 'rank', 'item', 'category', 'percentage'])
+    df.to_csv(csv_file, index=False)
+    print(f"Data exported to {csv_file} ({len(df)} rows)")
+
+
+def print_insights(data, filter_categories=None, rank_min=None, rank_max=None,
+                   min_percentage=None, max_percentage=None):
+    """Print statistical insights about the ranking data."""
+    years = sorted(data.keys())
+
+    print("\n=== Insights Summary ===")
+
+    all_filtered = {}
+    for year in years:
+        all_filtered[year] = apply_filters(
+            data[year],
+            filter_categories=filter_categories,
+            rank_min=rank_min,
+            rank_max=rank_max,
+            min_percentage=min_percentage,
+            max_percentage=max_percentage,
+        )
+
+    # Per-year statistics
+    for year in years:
+        entries = all_filtered[year]
+        if not entries:
+            print(f"\n{year}: No entries after filtering.")
+            continue
+        percentages = [e.get('percentage', 0) for e in entries]
+        categories = [e.get('category', 'Unknown') for e in entries]
+        cat_counts = {}
+        for c in categories:
+            cat_counts[c] = cat_counts.get(c, 0) + 1
+        top_cat = max(cat_counts, key=cat_counts.get)
+        print(f"\n{year}:")
+        print(f"  Entries     : {len(entries)}")
+        print(f"  Categories  : {len(cat_counts)} ({', '.join(sorted(cat_counts))})")
+        print(f"  Top category: {top_cat} ({cat_counts[top_cat]} entries)")
+        print(f"  Avg %       : {sum(percentages)/len(percentages):.2f}%")
+        print(f"  Max %       : {max(percentages):.2f}% ({entries[percentages.index(max(percentages))].get('item','')})")
+        print(f"  Min %       : {min(percentages):.2f}% ({entries[percentages.index(min(percentages))].get('item','')})")
+
+    # Year-over-year change analysis (for consecutive year pairs)
+    if len(years) >= 2:
+        print("\nYear-over-Year Changes:")
+        for i in range(len(years) - 1):
+            prev_year, curr_year = years[i], years[i + 1]
+            prev_items = {e['item']: e for e in all_filtered[prev_year]}
+            curr_items = {e['item']: e for e in all_filtered[curr_year]}
+            new_entries = [item for item in curr_items if item not in prev_items]
+            dropped = [item for item in prev_items if item not in curr_items]
+            movers = []
+            for item in curr_items:
+                if item in prev_items:
+                    rank_change = prev_items[item]['rank'] - curr_items[item]['rank']
+                    if rank_change != 0:
+                        movers.append((item, rank_change))
+            movers.sort(key=lambda x: abs(x[1]), reverse=True)
+            print(f"\n  {prev_year} → {curr_year}:")
+            print(f"    New entries  : {len(new_entries)}" +
+                  (f" ({', '.join(new_entries[:5])}{'...' if len(new_entries)>5 else ''})" if new_entries else ""))
+            print(f"    Dropped      : {len(dropped)}" +
+                  (f" ({', '.join(dropped[:5])}{'...' if len(dropped)>5 else ''})" if dropped else ""))
+            if movers:
+                top_mover = movers[0]
+                direction = "▲" if top_mover[1] > 0 else "▼"
+                print(f"    Biggest mover: {top_mover[0]} {direction}{abs(top_mover[1])}")
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Generate year-over-year ranking visualization.')
+    parser = argparse.ArgumentParser(
+        description='Generate year-over-year ranking visualization.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python generate_ranking.py\n"
+            "  python generate_ranking.py --database\n"
+            "  python generate_ranking.py --database --filter-category Electronics,Software\n"
+            "  python generate_ranking.py --database --sort-by percentage --sort-order desc\n"
+            "  python generate_ranking.py --export-csv output.csv --filter-rank-max 5\n"
+            "  python generate_ranking.py --insights\n"
+        ),
+    )
     parser.add_argument('-o', '--output', default='ranking_v2.png',
                         help='Output file name (PNG format)')
     parser.add_argument('-t', '--title', default='Top 10 Ranked Items',
                         help='Chart title')
-    parser.add_argument('-s', '--subtitle', 
+    parser.add_argument('-s', '--subtitle',
                         help='Chart subtitle (defaults to a generated subtitle)')
     parser.add_argument('-d', '--data', default='sample_data.json',
                         help='Path to JSON file with ranking data')
     parser.add_argument('--max-entries', type=int,
                         help='Maximum number of entries to show (default is 10)')
-    
+
+    # Database view options
+    parser.add_argument('--database', action='store_true',
+                        help='Print data in tabular database view instead of generating visualization')
+    parser.add_argument('--insights', action='store_true',
+                        help='Print statistical insights about the ranking data')
+    parser.add_argument('--export-csv', metavar='FILE',
+                        help='Export filtered/sorted data to a CSV file')
+
+    # Filter options
+    filter_group = parser.add_argument_group('filter options')
+    filter_group.add_argument('--filter-category', metavar='CATEGORIES',
+                              help='Comma-separated list of categories to include (case-insensitive)')
+    filter_group.add_argument('--filter-rank-min', type=int, metavar='N',
+                              help='Minimum rank to include (inclusive)')
+    filter_group.add_argument('--filter-rank-max', type=int, metavar='N',
+                              help='Maximum rank to include (inclusive)')
+    filter_group.add_argument('--filter-min-percentage', type=float, metavar='PCT',
+                              help='Minimum percentage value to include')
+    filter_group.add_argument('--filter-max-percentage', type=float, metavar='PCT',
+                              help='Maximum percentage value to include')
+
+    # Sort options
+    sort_group = parser.add_argument_group('sort options')
+    sort_group.add_argument('--sort-by', default='rank',
+                            choices=['rank', 'item', 'category', 'percentage'],
+                            help='Field to sort by in database/export view (default: rank)')
+    sort_group.add_argument('--sort-order', default='asc', choices=['asc', 'desc'],
+                            help='Sort order: asc or desc (default: asc)')
+
     args = parser.parse_args()
-    
-    # Get data from file with improved error handling
+
+    # Load data
     try:
         data = load_data_from_json(args.data)
     except FileNotFoundError:
@@ -591,15 +810,49 @@ def main():
         print(f"Error loading data from {args.data}: {e}")
         print("Please provide a valid JSON data file.")
         return
-    
-    # Create visualization with all customization options
-    create_visualization(
-        data, 
-        args.output, 
-        args.title, 
-        args.subtitle,
-        args.max_entries
+
+    # Shared filter kwargs
+    filter_kwargs = dict(
+        filter_categories=args.filter_category,
+        rank_min=args.filter_rank_min,
+        rank_max=args.filter_rank_max,
+        min_percentage=args.filter_min_percentage,
+        max_percentage=args.filter_max_percentage,
     )
+
+    # Handle database view
+    if args.database:
+        print_database_view(
+            data,
+            sort_by=args.sort_by,
+            sort_order=args.sort_order,
+            **filter_kwargs,
+        )
+
+    # Handle insights
+    if args.insights:
+        print_insights(data, **filter_kwargs)
+
+    # Handle CSV export
+    if args.export_csv:
+        export_to_csv(
+            data,
+            args.export_csv,
+            sort_by=args.sort_by,
+            sort_order=args.sort_order,
+            **filter_kwargs,
+        )
+
+    # Generate visualization unless only text modes were requested
+    if not args.database and not args.insights and not args.export_csv:
+        create_visualization(
+            data,
+            args.output,
+            args.title,
+            args.subtitle,
+            args.max_entries,
+        )
+
 
 if __name__ == "__main__":
     main()
